@@ -2,7 +2,7 @@ from optparse import Option
 import torch
 import torch.nn as nn
 import numpy as np
-from .faster_rcnn_renset_fpn import FasterRCNNSWinFPN as FasterRCNN
+from .faster_rcnn_swin_transformer_fpn import FasterRCNNSWinFPN as FasterRCNN
 from .dataset import AnnotationDataset, torch_img_transform
 from glob import glob
 from torch.utils.data import DataLoader

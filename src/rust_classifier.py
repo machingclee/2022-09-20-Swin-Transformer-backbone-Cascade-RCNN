@@ -2,7 +2,7 @@ import torch
 
 from .visualize import inference
 from . import config
-from .faster_rcnn_renset_fpn import FasterRCNNSWinFPN
+from .faster_rcnn_swin_transformer_fpn import FasterRCNNSWinFPN
 from .device import device
 from PIL import Image
 from typing import Tuple, List, Optional

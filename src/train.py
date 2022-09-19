@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import os
 from tqdm import tqdm
-from .faster_rcnn_renset_fpn import FasterRCNNSWinFPN
+from .faster_rcnn_swin_transformer_fpn import FasterRCNNSWinFPN
 from .visualize import visualize
 from .utils import ConsoleLog
 from .dataset import AnnotationDataset

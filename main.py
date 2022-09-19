@@ -1,6 +1,6 @@
 import torch
 from src.train import train_with_nan
-from src.faster_rcnn_renset_fpn import FasterRCNNSWinFPN
+from src.faster_rcnn_swin_transformer_fpn import FasterRCNNSWinFPN
 from src.device import device
 from src.rust_classifier import RustClassifier
 from PIL import Image
