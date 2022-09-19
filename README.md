@@ -6,4 +6,4 @@ The folder `dataset/` and `performance_check` has been removed as they contain c
 
 # Example Result
 
-<img src="imgs\sample.jpg" width="360"/>
+<img src="imgs\sample.jpg" width="450"/>
