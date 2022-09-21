@@ -15,13 +15,12 @@ class SwinFeatureExtractor(nn.Module):
     def __init__(self):
         super(SwinFeatureExtractor, self).__init__()
         self.model = models.swin_t(weights="DEFAULT").to(device)
-
-        self.layer1 = self.model.features[0:2]
-        self.layer2 = self.model.features[2:4]
-        self.layer3 = self.model.features[4:6]
-        self.lateral_conv4 = nn.Conv2d(384, config.fpn_feat_channels, 1, 1)
-        self.lateral_conv3 = nn.Conv2d(192, config.fpn_feat_channels, 1, 1)
-        self.lateral_conv2 = nn.Conv2d(96, config.fpn_feat_channels, 1, 1)
+        self.layer1 = self.model.features[0:3]
+        self.layer2 = self.model.features[3:5]
+        self.layer3 = self.model.features[5:8]
+        self.lateral_conv4 = nn.Conv2d(768, config.fpn_feat_channels, 1, 1)
+        self.lateral_conv3 = nn.Conv2d(384, config.fpn_feat_channels, 1, 1)
+        self.lateral_conv2 = nn.Conv2d(192, config.fpn_feat_channels, 1, 1)
         self.upscale = lambda input: F.interpolate(input, scale_factor=2)
         self.freeze_params()
 
@@ -97,4 +96,7 @@ class ResnetFPNFeactureExtractor(nn.Module):
 
 
 if __name__ == "__main__":
-    print(models.resnet50())
+    t = torch.randn((3, 3, 224, 224)).to(device)
+    feat_extractor = SwinFeatureExtractor()
+    out = feat_extractor(t)
+    print(out.shape)
