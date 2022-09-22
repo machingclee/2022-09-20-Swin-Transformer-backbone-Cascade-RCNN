@@ -8,9 +8,9 @@ anchor_ratios = [0.5, 1, 2]
 anchor_scales = [64, 128, 256, 512, 1024]
 
 img_shapes = [
+    (input_height // 4, input_width // 4),
     (input_height // 8, input_width // 8),
     (input_height // 16, input_width // 16),
-    (input_height // 32, input_width // 32),
 ]
 
 target_pos_iou_thres = 0.7
@@ -51,5 +51,6 @@ fpn_feat_channels = 192
 font_path = "fonts/wt014.ttf"
 
 ### training config --> ###
+grad_clipping_thres = 200
 
 serve_model_weight_path = "/home/raspect/nas1/tmp/joe/dsds/dsds_models/rust_cls_0004/model_epoch_50.pth"

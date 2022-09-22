@@ -10,6 +10,7 @@ from .dataset import AnnotationDataset
 from torch.utils.data import DataLoader
 from .device import device
 from typing import TypedDict, Literal
+from . import config
 
 console_log = ConsoleLog(lines_up_on_end=1)
 
@@ -35,6 +36,7 @@ def train(faster_rcnn: FasterRCNNSWinFPN, lr, start_epoch, epoches, save_weight_
                 return TrainingErrorMessage(message="nan_loss", curr_epoch=epoch)
                 
             opt.zero_grad()
+            torch.nn.utils.clip_grad_norm_(faster_rcnn.parameters(), config.grad_clipping_thres)
             total_loss.backward()
             opt.step()
             
