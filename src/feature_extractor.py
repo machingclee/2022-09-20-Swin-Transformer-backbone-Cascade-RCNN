@@ -6,19 +6,21 @@ import torch.nn.functional as F
 from torchsummary import summary
 from torch import Tensor
 from typing import Dict, List, Tuple, Optional, Any
-from . import config
-from .device import device
+from src import config
+from src.device import device
 from typing import OrderedDict
 
 
 class SwinFeatureExtractor(nn.Module):
     def __init__(self):
         super(SwinFeatureExtractor, self).__init__()
-        self.model = models.swin_t(weights="DEFAULT").to(device)
+        self.model = models.swin_s(weights="DEFAULT").to(device)
 
         self.layer1 = self.model.features[0:2]
         self.layer2 = self.model.features[2:4]
         self.layer3 = self.model.features[4:6]
+        self.layer4 = self.model.features[6:8]
+        self.lateral_conv5 = nn.Conv2d(768, config.fpn_feat_channels, 1, 1)
         self.lateral_conv4 = nn.Conv2d(384, config.fpn_feat_channels, 1, 1)
         self.lateral_conv3 = nn.Conv2d(192, config.fpn_feat_channels, 1, 1)
         self.lateral_conv2 = nn.Conv2d(96, config.fpn_feat_channels, 1, 1)
@@ -33,16 +35,19 @@ class SwinFeatureExtractor(nn.Module):
         x_4: Tensor = self.layer1(x)
         x_8 = self.layer2(x_4)
         x_16 = self.layer3(x_8)
+        x_32 = self.layer4(x_16)
 
         x_4 = x_4.permute([0, 3, 1, 2])
         x_8 = x_8.permute([0, 3, 1, 2])
         x_16 = x_16.permute([0, 3, 1, 2])
+        x_32 = x_32.permute([0, 3, 1, 2])
 
-        p4 = self.lateral_conv4(x_16)
+        p5 = self.lateral_conv5(x_32)
+        p4 = self.lateral_conv4(x_16) + self.upscale(p5)
         p3 = self.lateral_conv3(x_8) + self.upscale(p4)
         p2 = self.lateral_conv2(x_4) + self.upscale(p3)
 
-        return [p2, p3, p4]
+        return [p2, p3, p4, p5]
 
 
 class ResnetFPNFeactureExtractor(nn.Module):
@@ -97,4 +102,4 @@ class ResnetFPNFeactureExtractor(nn.Module):
 
 
 if __name__ == "__main__":
-    print(models.resnet50())
+    print(models.swin_s())

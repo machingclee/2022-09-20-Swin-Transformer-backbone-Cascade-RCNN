@@ -237,9 +237,9 @@ class FasterRCNNSWinFPN(nn.Module):
                     target_cls_indexes=target_cls_indexes
                 )
 
-            p2, p3, p4 = out_feat
+            p2, p3, p4, p5 = out_feat
             ordered_feat = OrderedDict(
-                [("0", p2), ("1", p3), ("2", p4)]
+                [("0", p2), ("1", p3), ("2", p4), ("3", p5)]
             )
             keep_mask = torch.abs(flattened_labels) == 1
             levels = levels[keep_mask]
@@ -263,9 +263,9 @@ class FasterRCNNSWinFPN(nn.Module):
             rois = rois[:config.roi_n_sample]
             levels = levels[:config.roi_n_sample]
 
-            p2, p3, p4 = out_feat
+            p2, p3, p4,p5 = out_feat
             ordered_feat = OrderedDict(
-                [("0", p2), ("1", p3), ("2", p4)]
+                [("0", p2), ("1", p3), ("2", p4), ("3", p5)]
             )
 
             pooling = self.roi_align(

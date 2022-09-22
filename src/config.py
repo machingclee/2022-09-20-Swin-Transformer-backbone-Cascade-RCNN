@@ -11,6 +11,7 @@ img_shapes = [
     (input_height // 4, input_width // 4),
     (input_height // 8, input_width // 8),
     (input_height // 16, input_width // 16),
+    (input_height // 32, input_width // 32)
 ]
 
 target_pos_iou_thres = 0.7
