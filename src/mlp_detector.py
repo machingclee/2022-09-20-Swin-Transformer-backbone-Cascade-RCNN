@@ -3,6 +3,8 @@ import torch.nn as nn
 import torchvision.models as models
 import torch.nn.functional as F
 from torchsummary import summary
+
+from .se_attention import SEAttention
 from . import config
 
 
@@ -10,6 +12,7 @@ class MLPDetector(nn.Module):
     def __init__(self, in_channels=512):
         super(MLPDetector, self).__init__()
         self.in_channels = in_channels
+        # self.se_blk = SEAttention(channel=config.fpn_feat_channels)
         self.mlp_head = nn.Sequential(
             nn.Linear(in_channels * 7 * 7, 4096),
             nn.ReLU(),
@@ -22,6 +25,7 @@ class MLPDetector(nn.Module):
         self.bbox_pred = nn.Linear(4096, config.n_classes * 4)
 
     def forward(self, pooling):
+        # x = self.se_blk(pooling)
         x = pooling.reshape(-1, self.in_channels * 7 * 7)
         x = self.mlp_head(x)
         scores_logits = self.cls_score(x)

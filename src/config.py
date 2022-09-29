@@ -36,15 +36,14 @@ n_train_post_nms = 2000
 n_eval_pre_nms = 6000
 n_eval_post_nms = roi_n_sample
 min_size = 16
+cascade_proposal_ious = [0.5, 0.6, 0.7]
 
 
 labels = ["rust"]
-n_classes = 2  # include background
+n_classes = len(labels) + 1  # include background
 
 
 dataset_dir = "dataset"
-training_img_dir = "dataset_blood/BCCD"
-test_img_dir = "dataset_blood/BCCD"
 pred_score_thresh = 0.05
 roi_head_encode_weights = [10, 10, 5, 5]
 fpn_feat_channels = 192

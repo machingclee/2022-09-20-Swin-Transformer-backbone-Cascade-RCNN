@@ -26,9 +26,9 @@ from .mlp_detector import MLPDetector
 cce_loss = nn.CrossEntropyLoss()
 
 
-class FasterRCNNSWinFPN(nn.Module):
+class CascadeFasterRCNNSWinFPN(nn.Module):
     def __init__(self):
-        super(FasterRCNNSWinFPN, self).__init__()
+        super(CascadeFasterRCNNSWinFPN, self).__init__()
         self.feature_extractor = SwinFeatureExtractor()
         self.rpn = RPN(in_channel=config.fpn_feat_channels).to(device)
         self.mlp_detector = MLPDetector(in_channels=config.fpn_feat_channels).to(device)
@@ -167,6 +167,105 @@ class FasterRCNNSWinFPN(nn.Module):
 
         return scores, boxes, cls_idxes
 
+    def stage_prediction_in_training(
+        self,
+        out_feat,
+        target_boxes,
+        target_cls_indexes,
+        rois,
+        flattened_pred_fg_bg_logits,
+        flattened_levels,
+        n_levels,
+        proposal_iou
+    ):
+        rois = clip_boxes_to_image(rois)
+        rois = rois.squeeze(0)
+
+        if self.training:
+            pred_fg_bg_logits, rois, levels = self.batch_filter_by_nms(
+                flattened_pred_fg_bg_logits.detach().clone(),
+                flattened_levels,
+                rois,
+                config.n_train_pre_nms,
+                config.n_train_post_nms,
+                proposal_iou,
+                n_levels=n_levels
+            )
+            level_distribution = [len(torch.where(levels == l)[0]) for l in range(n_levels)]
+            flattened_labels, flattened_distributed_targets_to_roi, flattened_distributed_cls_indexes = \
+                assign_targets_to_anchors_or_proposals(
+                    target_boxes,
+                    torch.split(rois, level_distribution),
+                    n_sample=config.roi_n_sample,
+                    pos_sample_ratio=config.roi_pos_ratio,
+                    pos_iou_thresh=config.roi_pos_iou_thresh,
+                    neg_iou_thresh=config.roi_neg_iou_thresh,
+                    target_cls_indexes=target_cls_indexes
+                )
+            keep_mask = torch.abs(flattened_labels) == 1
+            levels = levels[keep_mask]
+            p2, p3, p4, p5 = out_feat
+            ordered_feat = OrderedDict(
+                [("0", p2), ("1", p3), ("2", p4), ("3", p5)]
+            )
+
+            pooling = self.roi_align(
+                ordered_feat,
+                [rois[keep_mask]],
+                image_shapes=[config.image_shape]
+            )
+            cls_logits, roi_pred_deltas = self.mlp_detector(pooling)
+
+            roi_cls_loss, roi_reg_loss = self.get_roi_loss(
+                flattened_labels,
+                flattened_distributed_targets_to_roi,
+                rois,
+                roi_pred_deltas,
+                cls_logits,
+                flattened_distributed_cls_indexes
+            )
+            rois = rois[keep_mask]
+            pred_fg_bg_logits = pred_fg_bg_logits[keep_mask]
+            rois = decode_deltas_to_boxes(roi_pred_deltas, rois)
+            return roi_cls_loss, roi_reg_loss, cls_logits, rois, pred_fg_bg_logits, levels
+
+    def stage_prediction_in_eval(
+        self,
+        out_feat,
+        rois,
+        flattened_pred_fg_bg_logits,
+        flattened_levels,
+        proposal_iou
+    ):
+        pred_fg_bg_logits, rois, levels = self.batch_filter_by_nms(
+            flattened_pred_fg_bg_logits.clone(),
+            flattened_levels,
+            rois.clone(),
+            config.n_eval_pre_nms,
+            config.n_eval_post_nms,
+            proposal_iou
+        )
+
+        pred_fg_bg_logits = pred_fg_bg_logits[:config.roi_n_sample]
+        rois = rois[:config.roi_n_sample]
+        levels = levels[:config.roi_n_sample]
+
+        p2, p3, p4, p5 = out_feat
+        ordered_feat = OrderedDict(
+            [("0", p2), ("1", p3), ("2", p4), ("3", p5)]
+        )
+
+        pooling = self.roi_align(
+            ordered_feat,
+            [rois],
+            image_shapes=[config.image_shape]
+        )
+
+        cls_logits, roi_pred_deltas = self.mlp_detector(pooling)
+        rois = decode_deltas_to_boxes(roi_pred_deltas, rois)
+
+        return rois, pred_fg_bg_logits, levels, cls_logits
+
     def forward(
         self,
         x,
@@ -205,95 +304,60 @@ class FasterRCNNSWinFPN(nn.Module):
         flattened_pred_deltas = torch.cat(pred_deltas, dim=0)
         flattened_levels = torch.cat(levels, dim=0).to(device)
 
+        rois = decode_deltas_to_boxes(
+            flattened_pred_deltas.detach().clone(),
+            self.rpn.flattened_multi_scale_anchors
+        )
+        rois = clip_boxes_to_image(rois)
+
         if self.training:
             rpn_cls_loss, rpn_reg_loss = self.get_rpn_loss(
                 target_boxes, flattened_pred_deltas, flattened_pred_fg_bg_logits
             )
-        rois = decode_deltas_to_boxes(flattened_pred_deltas.detach().clone(), self.rpn.flattened_multi_scale_anchors)
-        rois = clip_boxes_to_image(rois)
-        rois = rois.squeeze(0)
 
-        if self.training:
-            pred_fg_bg_logits, rois, levels = self.batch_filter_by_nms(
-                flattened_pred_fg_bg_logits.detach().clone(),
-                flattened_levels,
-                rois,
-                config.n_train_pre_nms,
-                config.n_train_post_nms,
-                config.nms_train_iou_thresh,
-                n_levels=n_levels
-            )
-            # distribute to anchors
-            level_distribution = [len(torch.where(levels == l)[0]) for l in range(n_levels)]
+            roi_cls_losses = 0
+            roi_reg_losses = 0
 
-            flattened_labels, flattened_distributed_targets_to_roi, flattened_distributed_cls_indexes = \
-                assign_targets_to_anchors_or_proposals(
+            pred_fg_bg_logits = flattened_pred_fg_bg_logits
+            levels = flattened_levels
+
+            for i in range(len(config.cascade_proposal_ious)):
+                if (levels.shape[0] != rois.shape[0]):
+                    print("something wrong")
+                roi_cls_loss, roi_reg_loss, cls_logits, rois, pred_fg_bg_logits, levels = self.stage_prediction_in_training(
+                    out_feat,
                     target_boxes,
-                    torch.split(rois, level_distribution),
-                    n_sample=config.roi_n_sample,
-                    pos_sample_ratio=config.roi_pos_ratio,
-                    pos_iou_thresh=config.roi_pos_iou_thresh,
-                    neg_iou_thresh=config.roi_neg_iou_thresh,
-                    target_cls_indexes=target_cls_indexes
+                    target_cls_indexes,
+                    rois,
+                    pred_fg_bg_logits,
+                    levels,
+                    n_levels,
+                    config.cascade_proposal_ious[i]
                 )
 
-            p2, p3, p4, p5 = out_feat
-            ordered_feat = OrderedDict(
-                [("0", p2), ("1", p3), ("2", p4), ("3", p5)]
-            )
-            keep_mask = torch.abs(flattened_labels) == 1
-            levels = levels[keep_mask]
+                roi_cls_losses += roi_cls_loss
+                roi_reg_losses += roi_reg_loss
 
-            pooling = self.roi_align(
-                ordered_feat,
-                [rois[keep_mask]],
-                image_shapes=[config.image_shape]
-            )
-        else:
-            pred_fg_bg_logits, rois, levels = self.batch_filter_by_nms(
-                flattened_pred_fg_bg_logits.clone(),
-                flattened_levels,
-                rois.clone(),
-                config.n_eval_pre_nms,
-                config.n_eval_post_nms,
-                config.nms_eval_iou_thresh
-            )
-
-            pred_fg_bg_logits = pred_fg_bg_logits[:config.roi_n_sample]
-            rois = rois[:config.roi_n_sample]
-            levels = levels[:config.roi_n_sample]
-
-            p2, p3, p4, p5 = out_feat
-            ordered_feat = OrderedDict(
-                [("0", p2), ("1", p3), ("2", p4), ("3", p5)]
-            )
-
-            pooling = self.roi_align(
-                ordered_feat,
-                [rois],
-                image_shapes=[config.image_shape]
-            )
-
-        cls_logits, roi_pred_deltas = self.mlp_detector(pooling)
-
-        if self.training:
-            roi_cls_loss, roi_reg_loss = self.get_roi_loss(
-                flattened_labels,
-                flattened_distributed_targets_to_roi,
-                rois,
-                roi_pred_deltas,
-                cls_logits,
-                flattened_distributed_cls_indexes
-            )
-
-        if self.training:
-            return rpn_cls_loss, rpn_reg_loss, roi_cls_loss, roi_reg_loss
+            return rpn_cls_loss, rpn_reg_loss, roi_cls_losses, roi_reg_losses
         else:
             N = rois.shape[0]
             roi_pred_deltas = roi_pred_deltas.reshape(N, -1, 4)
             pred_boxes = decode_deltas_to_boxes(
                 roi_pred_deltas, rois, weights=config.roi_head_encode_weights
             ).squeeze(0)
+
+            pred_fg_bg_logits = flattened_pred_fg_bg_logits
+            levels = flattened_levels
+            rois = pred_boxes
+
+            for i in range(len(config.cascade_proposal_ious)):
+                rois, pred_fg_bg_logits, levels, cls_logits = self.stage_prediction_in_eval(
+                    out_feat,
+                    rois,
+                    pred_fg_bg_logits,
+                    levels,
+                    config.cascade_proposal_ious[i]
+                )
 
             scores, boxes, cls_idxes = self.filter_boxes_by_scores_and_size(cls_logits, pred_boxes)
             cls_idxes = cls_idxes - 1

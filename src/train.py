@@ -92,7 +92,8 @@ def train_with_nan(
                     restart_for_eps = epoches - (model_latest_epoch - start_epoch)
                     model_path = f"pths/model_epoch_{model_latest_epoch}.pth"
                     curr_model = FasterRCNNSWinFPN().to(device)
-                    curr_model.load_state_dict(torch.load(model_path))  
+                    if model_latest_epoch > 0:
+                        curr_model.load_state_dict(torch.load(model_path))  
                     curr_model.train()  
                     
                     print(f"Get nan loss, restart training at epoch {restart_ep} for additional {restart_for_eps} epochs")

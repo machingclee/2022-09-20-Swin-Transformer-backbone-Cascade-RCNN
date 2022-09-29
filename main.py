@@ -1,5 +1,6 @@
 import torch
 from src.train import train_with_nan
+from src.cascade_faster_rcnn_swin_transformer_fpn import CascadeFasterRCNNSWinFPN
 from src.faster_rcnn_swin_transformer_fpn import FasterRCNNSWinFPN
 from src.device import device
 from src.rust_classifier import RustClassifier
@@ -7,19 +8,19 @@ from PIL import Image
 
 
 def main():
-    model_path = None
-    faster_rcnn = FasterRCNNSWinFPN().to(device)
+    model_path = "pths/model_epoch_1.pth"
+    model = CascadeFasterRCNNSWinFPN().to(device)
 
     if model_path is not None:
-        faster_rcnn.load_state_dict(torch.load(model_path))
+        model.load_state_dict(torch.load(model_path))
 
-    faster_rcnn.train()
+    model.train()
 
     train_with_nan(
-        faster_rcnn,
+        model,
         lr=1e-5,
-        start_epoch=1,
-        epoches=40,
+        start_epoch=2,
+        epoches=31,
         save_weight_interval=1
     )
 

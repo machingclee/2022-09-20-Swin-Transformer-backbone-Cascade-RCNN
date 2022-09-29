@@ -6,15 +6,22 @@ import torch.nn.functional as F
 from torchsummary import summary
 from torch import Tensor
 from typing import Dict, List, Tuple, Optional, Any
-from src import config
-from src.device import device
+from . import config
+from .device import device
 from typing import OrderedDict
+from .se_attention import SEAttention
+from einops import rearrange, reduce, repeat
 
 
 class SwinFeatureExtractor(nn.Module):
     def __init__(self):
         super(SwinFeatureExtractor, self).__init__()
-        self.model = models.swin_s(weights="DEFAULT").to(device)
+        self.model = models.swin_t(weights="DEFAULT").to(device)
+        img_shapes = config.img_shapes
+
+        shape_32 = img_shapes[3]
+        shape_16 = img_shapes[2]
+        shape_8 = img_shapes[1]
 
         self.layer1 = self.model.features[0:2]
         self.layer2 = self.model.features[2:4]
@@ -24,6 +31,7 @@ class SwinFeatureExtractor(nn.Module):
         self.lateral_conv4 = nn.Conv2d(384, config.fpn_feat_channels, 1, 1)
         self.lateral_conv3 = nn.Conv2d(192, config.fpn_feat_channels, 1, 1)
         self.lateral_conv2 = nn.Conv2d(96, config.fpn_feat_channels, 1, 1)
+
         self.upscale = lambda input: F.interpolate(input, scale_factor=2)
         self.freeze_params()
 

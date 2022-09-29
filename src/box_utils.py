@@ -29,13 +29,13 @@ def assign_targets_to_anchors_or_proposals(
     multi_scale_distributed_cls_indexes = []
     multi_scale_distributed_targets = []
 
-    for anchors in multi_scale_anchors: 
+    for anchors in multi_scale_anchors:
         if len(anchors) == 0:
-            continue 
+            continue
         labels = torch.zeros((len(anchors),), dtype=torch.int32).to(device)
         distributed_cls_indexes = torch.zeros((len(anchors),), dtype=torch.float32).to(device)
         distributed_targets = torch.zeros((len(anchors), 4), dtype=torch.float32).to(device)
-        
+
         if len(target_boxes) == 0:
             chosen_idxes = random_choice(torch.arange(len(anchors)), n_sample)
             labels[chosen_idxes] = -1
