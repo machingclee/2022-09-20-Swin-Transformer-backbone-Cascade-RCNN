@@ -1,9 +1,9 @@
 from msilib.schema import Error
 import torch
+import torch.nn as nn
 import numpy as np
 import os
 from tqdm import tqdm
-from .faster_rcnn_swin_transformer_fpn import FasterRCNNSWinFPN
 from .visualize import visualize
 from .utils import ConsoleLog
 from .dataset import AnnotationDataset
@@ -18,7 +18,7 @@ class TrainingErrorMessage(TypedDict):
     curr_epoch: int
     message: Literal["nan_loss"]
 
-def train(faster_rcnn: FasterRCNNSWinFPN, lr, start_epoch, epoches, save_weight_interval=5): 
+def train(faster_rcnn: nn.Module, lr, start_epoch, epoches, save_weight_interval=5): 
     opt = torch.optim.Adam(faster_rcnn.parameters(), lr=lr)
     dataset = AnnotationDataset()
     data_loader = DataLoader(dataset, shuffle=True, batch_size=1)
@@ -59,6 +59,7 @@ def train(faster_rcnn: FasterRCNNSWinFPN, lr, start_epoch, epoches, save_weight_
 
 def train_with_nan(
     faster_rcnn,
+    build_model,
     lr=1e-5,
     start_epoch=6,
     epoches=11,
@@ -91,7 +92,7 @@ def train_with_nan(
                     restart_ep = model_latest_epoch + 1
                     restart_for_eps = epoches - (model_latest_epoch - start_epoch)
                     model_path = f"pths/model_epoch_{model_latest_epoch}.pth"
-                    curr_model = FasterRCNNSWinFPN().to(device)
+                    curr_model = build_model()
                     if model_latest_epoch > 0:
                         curr_model.load_state_dict(torch.load(model_path))  
                     curr_model.train()  
