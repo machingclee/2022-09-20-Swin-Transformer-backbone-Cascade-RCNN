@@ -46,6 +46,7 @@ n_classes = len(labels) + 1  # include background
 dataset_dir = "dataset"
 pred_score_thresh = 0.05
 roi_head_encode_weights = [10, 10, 5, 5]
+# fpn_feat_channels = 192 # for swin transformer
 fpn_feat_channels = 192
 
 font_path = "fonts/wt014.ttf"

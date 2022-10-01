@@ -27,10 +27,10 @@ from .mlp_detector import MLPDetector
 cce_loss = nn.CrossEntropyLoss()
 
 
-class CascadeFasterRCNNSWinFPN(nn.Module):
-    def __init__(self, fpn_feat_channels=192):
-        super(CascadeFasterRCNNSWinFPN, self).__init__()
-        self.feature_extractor = SwinFeatureExtractor()
+class CascadeFasterRCNN(nn.Module):
+    def __init__(self, fpn_feature_extractor: nn.Module, fpn_feat_channels):
+        super(CascadeFasterRCNN, self).__init__()
+        self.feature_extractor = fpn_feature_extractor
         self.rpn = RPN(in_channel=fpn_feat_channels).to(device)
         self.mlp_detectors = nn.ModuleList([
             MLPDetector(in_channels=fpn_feat_channels).to(device)

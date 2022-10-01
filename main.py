@@ -2,15 +2,20 @@ from re import L
 import torch
 import torch.nn as nn
 from src.train import train_with_nan
-from src.cascade_faster_rcnn_swin_transformer_fpn import CascadeFasterRCNNSWinFPN
+from src.cascade_faster_rcnn import CascadeFasterRCNN
 from src.faster_rcnn_swin_transformer_fpn import FasterRCNNSWinFPN
+from src.feature_extractor import Resnet50FPNFeactureExtractor
+from src.faster_rcnn_resnet50_fpn import FasterRCNNResnet50FPN
 from src.device import device
 from src.rust_classifier import RustClassifier
 from PIL import Image
 
 
 def build_model():
-    model = CascadeFasterRCNNSWinFPN().to(device)
+    model = CascadeFasterRCNN(
+        fpn_feature_extractor=Resnet50FPNFeactureExtractor().to(device),
+        fpn_feat_channels=Resnet50FPNFeactureExtractor.fpn_feat_channels
+    ).to(device)
     return model
 
 

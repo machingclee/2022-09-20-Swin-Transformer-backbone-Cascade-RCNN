@@ -14,23 +14,23 @@ from einops import rearrange, reduce, repeat
 
 
 class SwinFeatureExtractor(nn.Module):
+    fpn_feat_channels = 192
     def __init__(self):
         super(SwinFeatureExtractor, self).__init__()
         self.model = models.swin_t(weights="DEFAULT").to(device)
         img_shapes = config.img_shapes
 
-        shape_32 = img_shapes[3]
-        shape_16 = img_shapes[2]
-        shape_8 = img_shapes[1]
-
         self.layer1 = self.model.features[0:2]
         self.layer2 = self.model.features[2:4]
         self.layer3 = self.model.features[4:6]
         self.layer4 = self.model.features[6:8]
-        self.lateral_conv5 = nn.Conv2d(768, config.fpn_feat_channels, 1, 1)
-        self.lateral_conv4 = nn.Conv2d(384, config.fpn_feat_channels, 1, 1)
-        self.lateral_conv3 = nn.Conv2d(192, config.fpn_feat_channels, 1, 1)
-        self.lateral_conv2 = nn.Conv2d(96, config.fpn_feat_channels, 1, 1)
+        
+        fpn_feat_channels = SwinFeatureExtractor.fpn_feat_channels
+        
+        self.lateral_conv5 = nn.Conv2d(768, fpn_feat_channels, 1, 1)
+        self.lateral_conv4 = nn.Conv2d(384, fpn_feat_channels, 1, 1)
+        self.lateral_conv3 = nn.Conv2d(192, fpn_feat_channels, 1, 1)
+        self.lateral_conv2 = nn.Conv2d(96, fpn_feat_channels, 1, 1)
 
         self.upscale = lambda input: F.interpolate(input, scale_factor=2)
         self.freeze_params()
@@ -58,9 +58,11 @@ class SwinFeatureExtractor(nn.Module):
         return [p2, p3, p4, p5]
 
 
-class ResnetFPNFeactureExtractor(nn.Module):
+class Resnet50FPNFeactureExtractor(nn.Module):
+    fpn_feat_channels = 256
+
     def __init__(self):
-        super(ResnetFPNFeactureExtractor, self).__init__()
+        super(Resnet50FPNFeactureExtractor, self).__init__()
         self.resnet50 = models.resnet50(pretrained=True)
 
         self.conv2 = nn.Sequential(
@@ -73,11 +75,13 @@ class ResnetFPNFeactureExtractor(nn.Module):
         self.conv3 = self.resnet50.layer2
         self.conv4 = self.resnet50.layer3
         self.conv5 = self.resnet50.layer4
+        
+        fpn_feat_channels = Resnet50FPNFeactureExtractor.fpn_feat_channels
 
-        self.lateral_conv5 = nn.Conv2d(2048, config.fpn_feat_channels, 1, 1)
-        self.lateral_conv4 = nn.Conv2d(1024, config.fpn_feat_channels, 1, 1)
-        self.lateral_conv3 = nn.Conv2d(512, config.fpn_feat_channels, 1, 1)
-        self.lateral_conv2 = nn.Conv2d(256, config.fpn_feat_channels, 1, 1)
+        self.lateral_conv5 = nn.Conv2d(2048, fpn_feat_channels, 1, 1)
+        self.lateral_conv4 = nn.Conv2d(1024, fpn_feat_channels, 1, 1)
+        self.lateral_conv3 = nn.Conv2d(512, fpn_feat_channels, 1, 1)
+        self.lateral_conv2 = nn.Conv2d(256, fpn_feat_channels, 1, 1)
 
         self.upscale = lambda input: F.interpolate(input, scale_factor=2)
         self.freeze_params()

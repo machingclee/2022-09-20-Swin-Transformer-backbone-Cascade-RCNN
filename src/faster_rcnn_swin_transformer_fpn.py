@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import numpy as np
 from torchsummary import summary
 from .context_block import context_block2d
-from .feature_extractor import ResnetFPNFeactureExtractor, SwinFeatureExtractor
+from .feature_extractor import Resnet50FPNFeactureExtractor, SwinFeatureExtractor
 from .box_utils import (
     assign_targets_to_anchors_or_proposals, clip_boxes_to_image,
     decode_deltas_to_boxes, encode_boxes_to_deltas, remove_small_boxes,
@@ -27,11 +27,11 @@ cce_loss = nn.CrossEntropyLoss()
 
 
 class FasterRCNNSWinFPN(nn.Module):
-    def __init__(self):
-        super(FasterRCNNSWinFPN, self).__init__()
+    def __init__(self, fpn_feat_channels=192):
+        super(FasterRCNNSWinFPN, self, ).__init__()
         self.feature_extractor = SwinFeatureExtractor()
-        self.rpn = RPN(in_channel=config.fpn_feat_channels).to(device)
-        self.mlp_detector = MLPDetector(in_channels=config.fpn_feat_channels).to(device)
+        self.rpn = RPN(in_channel=fpn_feat_channels).to(device)
+        self.mlp_detector = MLPDetector(in_channels=fpn_feat_channels).to(device)
         self.roi_align = MultiScaleRoIAlign(
             featmap_names=["0", "1", "2", "3"],
             output_size=[7, 7],
