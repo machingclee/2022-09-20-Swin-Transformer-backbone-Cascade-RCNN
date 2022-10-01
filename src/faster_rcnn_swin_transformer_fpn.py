@@ -147,6 +147,7 @@ class FasterRCNNSWinFPN(nn.Module):
         cls_idxes = torch.arange(config.n_classes, device=device)
         cls_idxes = cls_idxes[None, ...].expand_as(cls_logits)
 
+        # by architecture will also detect a box for "background" class, we eliminate it by slicing that out:
         scores = cls_logits.softmax(dim=1)[:, 1:]
         boxes = pred_boxes[:, 1:]
         cls_idxes = cls_idxes[:, 1:]
@@ -160,7 +161,7 @@ class FasterRCNNSWinFPN(nn.Module):
         scores = scores[indxes]
         cls_idxes = cls_idxes[indxes]
 
-        keep = remove_small_boxes(boxes, min_size=1)
+        keep = remove_small_boxes(boxes, min_length=1)
         boxes = boxes[keep]
         scores = scores[keep]
         cls_idxes = cls_idxes[keep]

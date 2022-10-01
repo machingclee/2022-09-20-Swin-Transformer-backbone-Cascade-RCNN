@@ -13,9 +13,10 @@ def build_model():
     model = CascadeFasterRCNNSWinFPN().to(device)
     return model
 
+
 def main():
-    model_path = "pths/model_epoch_1.pth"
-    model = build_model
+    model_path = None
+    model = build_model()
 
     if model_path is not None:
         model.load_state_dict(torch.load(model_path))
@@ -26,7 +27,7 @@ def main():
         model,
         build_model,
         lr=1e-5,
-        start_epoch=2,
+        start_epoch=1,
         epoches=31,
         save_weight_interval=1
     )

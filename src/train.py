@@ -18,8 +18,8 @@ class TrainingErrorMessage(TypedDict):
     curr_epoch: int
     message: Literal["nan_loss"]
 
-def train(faster_rcnn: nn.Module, lr, start_epoch, epoches, save_weight_interval=5): 
-    opt = torch.optim.Adam(faster_rcnn.parameters(), lr=lr)
+def train(model: nn.Module, lr, start_epoch, epoches, save_weight_interval=5): 
+    opt = torch.optim.Adam(model.parameters(), lr=lr)
     dataset = AnnotationDataset()
     data_loader = DataLoader(dataset, shuffle=True, batch_size=1)
     
@@ -29,14 +29,13 @@ def train(faster_rcnn: nn.Module, lr, start_epoch, epoches, save_weight_interval
         for batch_id, (img, boxes, cls_indexes) in enumerate(tqdm(data_loader)):
             batch_id = batch_id+1
             
-            rpn_cls_loss, rpn_reg_loss, roi_cls_loss, roi_reg_loss = faster_rcnn(img, boxes[0], cls_indexes[0])
-            total_loss = rpn_cls_loss + 10*rpn_reg_loss + roi_cls_loss + 40*roi_reg_loss
+            rpn_cls_loss, rpn_reg_loss, roi_cls_loss, roi_reg_loss = model(img, boxes[0], cls_indexes[0])
+            total_loss = rpn_cls_loss + 10*rpn_reg_loss + roi_cls_loss + 10*roi_reg_loss
             
             if torch.isnan(total_loss):
                 return TrainingErrorMessage(message="nan_loss", curr_epoch=epoch)
                 
             opt.zero_grad()
-            torch.nn.utils.clip_grad_norm_(faster_rcnn.parameters(), config.grad_clipping_thres)
             total_loss.backward()
             opt.step()
             
@@ -48,17 +47,17 @@ def train(faster_rcnn: nn.Module, lr, start_epoch, epoches, save_weight_interval
                     ("-roi_cls_loss", roi_cls_loss.item()),
                     ("-roi_reg_loss", roi_reg_loss.item())
                 ])
-            
-                if batch_id % 20 == 0:
-                    visualize(faster_rcnn, f"{epoch}_batch_{batch_id}.jpg")
+                
+            if batch_id % 20 == 0:
+                visualize(model, f"{epoch}_batch_{batch_id}.jpg")
 
         if epoch % save_weight_interval == 0:
-            state_dict = faster_rcnn.state_dict()
+            state_dict = model.state_dict()
             torch.save(state_dict, os.path.join("pths", f"model_epoch_{epoch}.pth"))
 
 
 def train_with_nan(
-    faster_rcnn,
+    model,
     build_model,
     lr=1e-5,
     start_epoch=6,
@@ -69,7 +68,7 @@ def train_with_nan(
     continue_training = True
     restart_ep = start_epoch
     restart_for_eps = epoches
-    curr_model = faster_rcnn    
+    curr_model = model    
     
     while continue_training:
         result = train(

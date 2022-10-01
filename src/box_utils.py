@@ -17,7 +17,7 @@ def assign_targets_to_anchors_or_proposals(
     pos_sample_ratio,
     pos_iou_thresh,
     neg_iou_thresh,
-    target_cls_indexes=None
+    target_cls_indexes=None,
 ):
     target_boxes = target_boxes.to(device)
     """
@@ -103,13 +103,13 @@ def assign_targets_to_anchors_or_proposals(
     )
 
 
-def encode_boxes_to_deltas(distributed_targets, anc_or_pro, weights=[1, 1, 1, 1]):
-    epsilon = 1e-8
-    anc_or_pro = anc_or_pro.to(device)
-    anchors_x1 = anc_or_pro[:, 0].unsqueeze(1)
-    anchors_y1 = anc_or_pro[:, 1].unsqueeze(1)
-    anchors_x2 = anc_or_pro[:, 2].unsqueeze(1)
-    anchors_y2 = anc_or_pro[:, 3].unsqueeze(1)
+def encode_boxes_to_deltas(distributed_targets, anchor_or_proposals, weights=[1, 1, 1, 1]):
+    epsilon = 1e-4
+    anchor_or_proposals = anchor_or_proposals.to(device)
+    anchors_x1 = anchor_or_proposals[:, 0].unsqueeze(1)
+    anchors_y1 = anchor_or_proposals[:, 1].unsqueeze(1)
+    anchors_x2 = anchor_or_proposals[:, 2].unsqueeze(1)
+    anchors_y2 = anchor_or_proposals[:, 3].unsqueeze(1)
 
     target_boxes_x1 = distributed_targets[:, 0].unsqueeze(1)
     target_boxes_y1 = distributed_targets[:, 1].unsqueeze(1)
@@ -127,10 +127,10 @@ def encode_boxes_to_deltas(distributed_targets, anc_or_pro, weights=[1, 1, 1, 1]
     gt_ctr_y = target_boxes_y1 + 0.5 * gt_heights
 
     wx, wy, ww, wh = weights
-    targets_dx = wx * (gt_ctr_x - an_ctr_x) / (an_widths)
-    targets_dy = wy * (gt_ctr_y - an_ctr_y) / (an_heights)
-    targets_dw = ww * torch.log((gt_widths + epsilon) / (an_widths))
-    targets_dh = wh * torch.log((gt_heights + epsilon) / (an_heights))
+    targets_dx = wx * (gt_ctr_x - an_ctr_x) / (an_widths + epsilon)
+    targets_dy = wy * (gt_ctr_y - an_ctr_y) / (an_heights + epsilon)
+    targets_dw = ww * torch.log((gt_widths + epsilon) / (an_widths + epsilon))
+    targets_dh = wh * torch.log((gt_heights + epsilon) / (an_heights + epsilon))
 
     deltas = torch.cat((targets_dx, targets_dy, targets_dw, targets_dh), dim=1)
     return deltas
@@ -285,8 +285,8 @@ def clip_boxes_to_image(boxes, size=config.image_shape):
     return clipped_boxes.reshape(boxes.shape)
 
 
-def remove_small_boxes(boxes, min_size):
+def remove_small_boxes(boxes, min_length):
     ws, hs = boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]
-    keep = torch.logical_and(torch.ge(ws, min_size), torch.ge(hs, min_size))
+    keep = torch.logical_and(torch.ge(ws, min_length), torch.ge(hs, min_length))
     keep = torch.where(keep)[0]
     return keep

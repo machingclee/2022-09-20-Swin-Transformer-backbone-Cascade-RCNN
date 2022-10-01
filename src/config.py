@@ -51,6 +51,7 @@ fpn_feat_channels = 192
 font_path = "fonts/wt014.ttf"
 
 ### training config --> ###
-grad_clipping_thres = 200
+grad_clipping_thres = 100
+prediction_min_width_height = 1
 
 serve_model_weight_path = "/home/raspect/nas1/tmp/joe/dsds/dsds_models/rust_cls_0004/model_epoch_50.pth"
